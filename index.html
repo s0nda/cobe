@@ -10,240 +10,78 @@
   <title>COde BEautifier</title>
 <body>
   <script type="text/javascript" src="cobe.js"></script>
-  <h1>COBE.JS - The COde BEautifier in Javascript</h1>
+  <h1>CobeJS (COde BEautifier in Javascript)</h1>
+  <h2>Syntax highlighting</h2>
   <br />
-  <div style="display:flex; flex-direction:row;">
-  <div style="flex: 0 1 0px; padding: 10px 0 10px 14px; font-size: 14px; font-weight: normal; font-style: normal; font-family: Consolas, Menlo , Monaco, 'Lucida Console', 'Liberation Mono', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', 'Courier New', monospace, 'sans-serif';">
-    1<br />2<br />3<br />4<br />5<br />
-    6<br />7<br />8<br />9<br />10<br />
-    11<br />12<br />13<br />14<br />
-  </div>
-  <div style="flex: 1 0 0px; overflow-x: scroll;">
-    <pre class="cobe">
-      /**
-        * Example program for illustrating the use of "COde BEautifier"
-        * Author: s0nda
-        * Copyright 2018-today
-        */
-      #ifdef SSS_H
-      #define return SUM(x, y) (x + y)
-      #include <stdio.h>
-      /*
-       * Main Program if (tok)
-       */
-      int main (int argc, char * argv[]) {  // if then else
-        printf("Hello World !\n"); // display string in console
-        return 0;
-        if (x == 1) {  // if then else
-            // AAAA
-            for (int i = 1; i < 100; i++) {
-                i++;
-                return 0;
-            }
-        }
-      }
-      int for_each () { // ; do
-        do {
-            break; return 0;
-        }
-      }
-    </pre>
-  </div>
+  <div class="cobe">
+    #!/bin/bash
+    #
+    # A bas script example
+    #
+    while read line; do # while loop
+        echo $line # display line in console
+        read -p "User input: " user_input  # store user input in $user_input
+        echo $user_input # display user input in console
+    done &lt; "text.txt" # read input stream from "text.txt"
   </div>
   <br />
-  <div>
-    <pre class="cobe">
-        #!/bin/bash
-        # comment
-        while read line; do # while do
-        do
-            echo $line # if then else fi
-            read -p "User input: " user_input  # innerer read wird nicht (!) funktionieren
-            echo $user_input
-        done &lt; "text.txt" # read input stream from "text.txt"
-        if [ -z "${VAR}"]; then
-        then
-            read # for loop in; then
-        fi
-    </pre>
-  </div>
-  <br />
-  <div>
-  <pre class="cobe">
+  <div class="cobe">
     /**
-      * Example program for illustrating the use of "COde BEautifier"
-      * Author: s0nda
-      * Copyright 2018-today
-      */
-    #ifdef SSS_H
-    #include <stdio.h>
+    * strtok.h
+    * 
+    * Usage:
+    *      Include this header by using the #include directive:
+    *              #include "strtok.h"
+    * 
+    * Compile:
+    *      gcc -Wall -Werror -std=gnu99 -pedantic <main_prog.c> -o <main_prog>
+    * 
+    * where <main_prog> is the name of C-file that imports (includes) the 
+    * "strtok.h" header file.
+    */
+    #ifndef STRTOK_H
+    #define STRTOK_H
+    
+    #ifdef __cplusplus
+    extern "C" {
+    #endif
+    
     /*
-     * Main Program
-     * if (tok)
-     */
-    int main (int argc, char * argv[]) {
-      printf("Hello World !\n"); // display string in console
-      do {
-          // ABC
-          printf("Hello !\n");
-      }
-      while (1);
-      return 0;
-    }
-  </pre>
-</div>
-  <br />
-  <div>
-  <pre class="cobe">
-    #endif A
-    #ifdef AA_H
-    #include <stdio.h>
-
-    int main () {
-        while (1) {
-            printf("%d\n", i);
-        }
-        const unsigned int x = 1;
-
-        for (int i = 0; i < 100; i++) {
-            printf("%d\n", i);
-            return;
-        }
-        if (i < 100) {
-            i++;
-        }
-        else if (i >= 100) {
-            i--;
-            return;
-        }
-        else {
-            i = 0;
-        }
-        if (i < 100) { // if then else
-            i++;
-        }
-        while (1) {
-            printf("%d\n", i);
-        }
-    }
+    * strtok
+    * 
+    * Splitts (Tokenizes) a given <string> in to many substrings (tokens), that are
+    * delimited by characters given in <delimiters>.
+    * 
+    * @params
+    *      <string>:
+    *          String that should be splitted (tokenized) in tokens.
+    *          This string will remain modified after tokenization.
+    *      <delimiters>:
+    *          An char array that contains the delimiters for tokenizing
+    * 
+    * @return
+    *      A token (substring) is returned. If <string> is NULL, then
+    *      either NULL or the next token will be returned.
+    */
     char * strtok (char * __restrict__ string, const char * __restrict__ delimiters) {
         if (!delimiters || !(*delimiters)) { // delimiters == NULL || delimiters[0] == '\0'
             return string;
         }
-    }
-    //
-    //
-    float calculate (float a /* Number */, float b) {
-        switch (x) {
-            case 1:
-                // Instruction
-                break;
-            case 2:
-                // Instruction
-                break;
-            default:
-                break;
-        }
-    }
-  </pre>
-  </div>
-  <br />
-    <pre class="cobe">
-/**
-* strtok.h
-* 
-* Usage:
-*      Include this header by using the #include directive:
-*              #include "strtok.h"
-* 
-* Compile:
-*      gcc -Wall -Werror -std=gnu99 -pedantic <main_prog.c> -o <main_prog>
-* 
-* where <main_prog> is the name of C-file that imports (includes) the 
-* "strtok.h" header file.
-*/
-#ifndef STRTOK_H
-#define STRTOK_H
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/*
-* strtok
-* 
-* Splitts (Tokenizes) a given <string> in to many substrings (tokens), that are
-* delimited by characters given in <delimiters>.
-* 
-* @params
-*      <string>:
-*          String that should be splitted (tokenized) in tokens.
-*          This string will remain modified after tokenization.
-*      <delimiters>:
-*          An char array that contains the delimiters for tokenizing
-* 
-* @return
-*      A token (substring) is returned. If <string> is NULL, then
-*      either NULL or the next token will be returned.
-*/
-char * strtok (char * __restrict__ string, const char * __restrict__ delimiters) {
-    if (!delimiters || !(*delimiters)) { // delimiters == NULL || delimiters[0] == '\0'
-        return string;
-    }
-    ////
-    // 0. Declare (static) variables
-    ////
-    int cta = 0; // current token address; distance (offset) from string begin for current token
-    static int nta = 0; // next token address; distance (offset) from string begin for next token
-    static int ln = 0; // length of <string>
-    static char * tok = 0; // pointer to <string>; tok = NULL = 0
-    ////
-    // 1. If <string> is NULL, return the (next) string token or NULL
-    ////
-    if ( !string ) { // string == 0 = NULL
-        if ( !tok ) {
-            return 0;
-        }
-        cta = nta; // set token address
-        if (cta == ln) {
-            return 0;
-        }
-        while (tok[nta]) {
-            ++nta;
-        }
-        while ( !tok[nta] && (nta < ln)) { // (tok[cta] == 0 == '\0') && (nta < ln)
-            ++nta;
-        }
-    }
-    else { // string != NULL
         ////
-        // 2. Replace all delimiters in <string> by '\0'. Update nta (next token's address)
+        // 0. Declare (static) variables
         ////
-        if (!tok) { // if (tok != NULL)
-            tok = string;
-        }
-        int i = 0, j = 0;
-        while (string[i]) {
-            j = 0;
-            while (delimiters[j]) {
-                if (string[i] == delimiters[j]) {
-                    string[i] = '\0';
-                    if (nta == 0) { // Update nta
-                        nta = i + 1;
-                    }
-                    break;
-                }
-                ++j;
+        int cta = 0; // current token address; distance (offset) from string begin for current token
+        static int nta = 0; // next token address; distance (offset) from string begin for next token
+        static int ln = 0; // length of <string>
+        static char * tok = 0; // pointer to <string>; tok = NULL = 0
+        ////
+        // 1. If <string> is NULL, return the (next) string token or NULL
+        ////
+        if ( !string ) { // string == 0 = NULL
+            if ( !tok ) {
+                return 0;
             }
-            ++i;
-        }
-        ln = i; // Set length of <string>
-        ////
-        // 3. Set valid cta (current token's address) and update nta (next token's address).
-        //    Skip (Jump over) all delimiters (replaced by '\0').
-        ////
-        while ( !tok[cta] ) { // tok[cta] == 0 == '\0'
-            cta = nta;
+            cta = nta; // set token address
             if (cta == ln) {
                 return 0;
             }
@@ -254,15 +92,54 @@ char * strtok (char * __restrict__ string, const char * __restrict__ delimiters)
                 ++nta;
             }
         }
+        else { // string != NULL
+            ////
+            // 2. Replace all delimiters in <string> by '\0'. Update nta (next token's address)
+            ////
+            if (!tok) { // if (tok != NULL)
+                tok = string;
+            }
+            int i = 0, j = 0;
+            while (string[i]) {
+                j = 0;
+                while (delimiters[j]) {
+                    if (string[i] == delimiters[j]) {
+                        string[i] = '\0';
+                        if (nta == 0) { // Update nta
+                            nta = i + 1;
+                        }
+                        break;
+                    }
+                    ++j;
+                }
+                ++i;
+            }
+            ln = i; // Set length of <string>
+            ////
+            // 3. Set valid cta (current token's address) and update nta (next token's address).
+            //    Skip (Jump over) all delimiters (replaced by '\0').
+            ////
+            while ( !tok[cta] ) { // tok[cta] == 0 == '\0'
+                cta = nta;
+                if (cta == ln) {
+                    return 0;
+                }
+                while (tok[nta]) {
+                    ++nta;
+                }
+                while ( !tok[nta] && (nta < ln)) { // (tok[cta] == 0 == '\0') && (nta < ln)
+                    ++nta;
+                }
+            }
+        }
+        return (tok + cta);
     }
-    return (tok + cta);
-}
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* STRTOK_H */
-    </pre>
+    
+    #ifdef __cplusplus
+    }
+    #endif
+    
+    #endif /* STRTOK_H */
+  </div>
 </body>
 </html>

@@ -39,6 +39,7 @@ var COBE = (function () {
     //       */
     //
     // The regular expressions (in Literal Notation /regexp/g) for (1), (2), (3), (4) respectively are:
+    // (0) #[ ]*(\r?\n|\r)
     // (1) #[ ]+.*[ ]*(\r?\n|\r)
     // (2) \/\/[ ]*.*[ ]*(\r?\n|\r)  <== The special sign (slash '/') must be escaped with backslash ('\') to '\/'.
     // (3) \/\*[ ]*.*[ ]*\*\/        <== The special sign (start '*') must be escaped with backslash ('\') to '\*'.
@@ -46,18 +47,21 @@ var COBE = (function () {
     //
     // The 4 regular expressions above are combined by OR ('|') operator. Moreover, global ('g') flag is used.
     //
-    const DEFAULT_REGEX_COMMENTS = /#[ ]+.*[ ]*(\r?\n|\r)|\/\/[ ]*.*[ ]*(\r?\n|\r)|\/\*[ ]*.*[ ]*\*\/|\/\*([ ]*.*[ ]*(\r?\n|\r)[ ]*\*)+\*?\/(\r?\n|\r)/g; // Line-feed / Carriage-return: \r\n (Win/DOS), \r (older Macs), \n (Linux/Unix)
+    const DEFAULT_REGEX_COMMENTS = /#[ ]*(\r?\n|\r)|#[ ]+.*[ ]*(\r?\n|\r)|\/\/[ ]*.*[ ]*(\r?\n|\r)|\/\*[ ]*.*[ ]*\*\/|\/\*([ ]*.*[ ]*(\r?\n|\r)[ ]*\*)+\*?\/(\r?\n|\r)/g; // Line-feed / Carriage-return: \r\n (Win/DOS), \r (older Macs), \n (Linux/Unix)
     //
     // CSS seletor(s)
     //
-    const DEFAULT_CSS_SELECTOR_CODE_BLOCKS = "pre.cobe";
+    const DEFAULT_CSS_SELECTOR_CODE_BLOCKS = "div.cobe";
     //
     // CSS styles for code blocks, keywords etc.
     //
-    const DEFAULT_CSS_STYLE_CODE =
-        "padding: 10px 0 10px 14px; overflow-x: scroll;" +
-        "font-size: 14px; font-weight: normal; font-style: normal;" +
-        "font-family: Consolas, Menlo , Monaco, 'Lucida Console', 'Liberation Mono', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', 'Courier New', monospace, 'sans-serif';";
+    const DEFAULT_CSS_STYLE = {
+        FONT : "font-size: 14px; font-weight: normal; font-style: normal;"
+             + "font-family: Consolas, Menlo , Monaco, 'Lucida Console', 'Liberation Mono', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', 'Courier New', monospace, 'sans-serif';",
+        PARENT : "display: flex; flex-direction: row;", // style for <div> parent, that contains the <pre> code block
+        CHILD_NUMBER   : "flex: 0 1 0px; text-align: right; padding-left: 4px; padding-right: 8px; padding-bottom: 9px;", // syle for left child (<div>) for numbering lines, <flex-grow> <flex-shrink> <flex-basis with unit>
+        CHILD_PRE_CODE : "flex: 1 0 0px; overflow-x: scroll; padding-left: 14px; padding-bottom: 9px;" // style for right child (<pre>) for code
+    };
     //
     // Themes for Appearance 
     //
@@ -65,6 +69,7 @@ var COBE = (function () {
         DARK : {
             BACKGROUND : "background: #2E3436;",
             FONT_COLOR : "color: #fff;",
+            NUMBER_COLOR: "color: #c0b9b7;",
             COMMENTS : "color: #33ff46;",
             TYPES : "color: #4198ef;",
             KEYWORDS : "color: #f99df2;",
@@ -72,7 +77,8 @@ var COBE = (function () {
         },
         STANDARD : {
             BACKGROUND : "background: #cdcbcb;",
-            FONT : "color: #000;",
+            FONT_COLOR : "color: #000;",
+            NUMBER_COLOR: "color: #000;",
             COMMENTS : "color: #000",
             TYPES : "color: #000;",
             KEYWORDS : "color: #000;",
@@ -127,6 +133,16 @@ var COBE = (function () {
         }, // END (init)
 
         /*
+         * prepare
+         *
+         * Description:
+         * 
+         */
+        prepare : function () {
+
+        }, // END (prepare)
+
+        /*
          * match_count
          *
          * Description: Return the number of matches when using "String.prototype.match(regex)"
@@ -152,13 +168,23 @@ var COBE = (function () {
         beautify : function () {
             for (let i = 0; i < code_blocks.length; i++) {
                 //
-                // Get a code block
-                //
-                let block = code_blocks[i];
-                //
                 // Get content of block. Escape special signs (characters).
                 //
-                let code = block.innerHTML.escapeHTML();
+                let code = code_blocks[i].innerHTML.escapeHTML();
+                code_blocks[i].innerHTML = "";
+                //
+                // Create a new <div> element for numbering code lines
+                //
+                let _div = document.createElement("DIV");
+                //
+                // Create a new <pre> element for holding code
+                //
+                let _pre = document.createElement("PRE");
+                //
+                // Append newly created elements to parent
+                //
+                code_blocks[i].appendChild(_div);
+                code_blocks[i].appendChild(_pre);
                 //
                 // Split content (text) line-by-line separated by delimiter \n, \r\n, \r (line-feed, new-line).
                 //
@@ -318,13 +344,22 @@ var COBE = (function () {
                     return "<span style='" + theme_active.COMMENTS + "'>" + match + "</span>";
                 });
                 //
-                // Apply CSS style for code block(s)
+                // Apply CSS style to code block(s)
                 //
-                code_blocks[i].style = DEFAULT_CSS_STYLE_CODE + theme_active.BACKGROUND + theme_active.FONT_COLOR;
+                code_blocks[i].style = DEFAULT_CSS_STYLE.PARENT;
+                _div.style = DEFAULT_CSS_STYLE.FONT + DEFAULT_CSS_STYLE.CHILD_NUMBER + theme_active.BACKGROUND + theme_active.NUMBER_COLOR;
+                _pre.style = DEFAULT_CSS_STYLE.FONT + DEFAULT_CSS_STYLE.CHILD_PRE_CODE + theme_active.BACKGROUND + theme_active.FONT_COLOR;
                 //
                 // Re-assign formatted code to block
                 //
-                code_blocks[i].innerHTML = code;
+                _pre.innerHTML = code;
+                //
+                // Numbering the code lines
+                //
+                if (lines[0] == "") { // first line is <empty string> ==> remove
+                    _div.innerHTML += "<br />";
+                }
+                for (let i = 1; i < lines.length-1; i++) { _div.innerHTML += i + "<br />"; }
             }
         }, // END (beautify)
 
