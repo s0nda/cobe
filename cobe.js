@@ -58,9 +58,9 @@ var COBE = (function () {
     const DEFAULT_CSS_STYLE = {
         FONT : "font-size: 14px; font-weight: normal; font-style: normal;"
              + "font-family: Consolas, Menlo , Monaco, 'Lucida Console', 'Liberation Mono', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', 'Courier New', monospace, 'sans-serif';",
-        PARENT : "display: flex; flex-direction: row;", // style for <div> parent, that contains the <pre> code block
-        CHILD_NUMBER   : "flex: 0 1 0px; text-align: right; padding-left: 4px; padding-right: 8px; padding-bottom: 9px;", // syle for left child (<div>) for numbering lines, <flex-grow> <flex-shrink> <flex-basis with unit>
-        CHILD_PRE_CODE : "flex: 1 0 0px; overflow-x: scroll; padding-left: 14px; padding-bottom: 9px;" // style for right child (<pre>) for code
+        PARENT : "display: inline-block;", // style for <div> parent, that contains the <pre> code block
+        CHILD_NUMBER   : "float:left; overflow-x: scroll; text-align: right; padding-left: 4px; padding-right: 8px; padding-bottom: 9px;", // syle for left child (<div>) for numbering lines, <flex-grow> <flex-shrink> <flex-basis with unit>
+        CHILD_PRE_CODE : "overflow-x: scroll; padding-left: 14px; padding-right: 8px; padding-bottom: 9px; " // style for right child (<pre>) for code
     };
     //
     // Themes for Appearance 
@@ -336,6 +336,9 @@ var COBE = (function () {
                 //
                 // Join all lines to complete code.
                 //
+                if (lines[lines.length-1] === "") { // <empty line>
+                    lines.pop();
+                }
                 code = lines.join("\r\n");
                 //
                 // Format comments in code
@@ -359,7 +362,7 @@ var COBE = (function () {
                 if (lines[0] == "") { // first line is <empty string> ==> remove
                     _div.innerHTML += "<br />";
                 }
-                for (let i = 1; i < lines.length-1; i++) { _div.innerHTML += i + "<br />"; }
+                for (let i = 1; i < lines.length; i++) { _div.innerHTML += i + "<br />"; }
             }
         }, // END (beautify)
 
