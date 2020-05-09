@@ -19,13 +19,15 @@ var COBE = (function () {
     // Collections of keywords in code
     //
     const DEFAULT_TYPES = "unsigned|byte|char|int|float|double|void";
-    const DEFAULT_KEYWORDS = "if|else|for|do|while|done|break|continue|return|switch|case|default";
+    const DEFAULT_KEYWORDS = "if|then|else|fi|for|do|while|done|break|continue|return|switch|case|default|in";
     const DEFAULT_DIRECTIVES = "#pseudoA|#include|#ifdef|#ifndef|#define|#endif|#!/bin/bash|#pseudoB"; // Workaround: Must add "pseudoA" at beginning and "#pseudoB" at the end. Otherwise, the first (#include) and last (#endif) directive will not be recognized.
     //
-    // RegExp for keywords in code
+    // RegExp for keywords (types, control-keywords, directives) in code
     //
     const DEFAULT_REGEX_TYPES = "((const|static|)[ ]+)?(" + DEFAULT_TYPES + ")[ ]+(\\*)?"; // double-backslash (\\) to escape the start (*)
-    const DEFAULT_REGEX_KEYWORDS = "\\b(" + DEFAULT_KEYWORDS + ")\\b(?=[ ]*.*(;|:|((\r?\n|\r)?{|})))";
+    const DEFAULT_REGEX_KEYWORDS = "\\b(" + DEFAULT_KEYWORDS + ")\\b(?=[ ]*.*(;|:|((\r?\n|\r)?{|})))"
+                                +  "|^(" + DEFAULT_KEYWORDS + ")$"
+                                + "|;[ ]+(" + DEFAULT_KEYWORDS + ")"; // Bash syntax: <while> ... ; <do>
     const DEFAULT_REGEX_DIRECTIVES = "\\b" + DEFAULT_DIRECTIVES + "\\b(?=.*(\r?\n|\r))";
     //
     // RegExp for code comments. Support single- and multiple-line comments as follows:
@@ -241,13 +243,13 @@ var COBE = (function () {
                 // Use the "Lookahead Assertion" : "x(?=y)"
                 //
                 for (let i = 0; i < lines.length; i++) {
-                    let index_comment = lines[i].search(/\s*(\/\/|\*).*/g); // index of the first occurence of the <comment> pattern like "// <comment>" or "/* <comment> */"
+                    let index_comment = lines[i].search(/\s*(\/\/|\*|#[ ]+.*).*/g); // index of the first occurence of the <comment> pattern like "// <comment>" or "/* <comment> */" or "# <comment>"
                     if (index_comment != -1) { // lines[i] contains comment (/* <comment> */ or // <comment>)
                         //
                         // format type-keywords
                         regex = new RegExp(DEFAULT_REGEX_TYPES, "gi"); // RegExp object (for types-keyword) => slower than RegExp Literal Notation "/../i" where flag "i" is for ignoring case-sensitive
                         if (index_comment > lines[i].search(regex)) { // keyword is outside of comment => color keyword
-                            if ( !lines[i].match(/\s*.*#.*/) ) { // lines[i] has no preprocessor directives starting with "#"
+                            if ( !lines[i].match(/.*#[a-zA-Z0-9_!/]/) ) { // lines[i] has no preprocessor directives starting with "#"
                                 lines[i] = lines[i].replace(regex, (match) => {
                                     return "<span style='" + theme_active.TYPES + "'>" + match + "</span>";
                                 });
@@ -257,9 +259,13 @@ var COBE = (function () {
                         // format control-keywords
                         regex = new RegExp(DEFAULT_REGEX_KEYWORDS, "gi"); // RegExp object (for keywords) => slower than RegExp Literal Notation "/../i" where flag "i" is for ignoring case-sensitive
                         if (index_comment > lines[i].search(regex)) { // keyword is outside of comment => color keyword
-                            if ( !lines[i].match(/\s*.*#.*/) ) { // lines[i] has no preprocessor directives starting with "#"
+                            if ( !lines[i].match(/.*#[a-zA-Z0-9_!/]/) ) { // lines[i] has no preprocessor directives starting with "#"
                                 lines[i] = lines[i].replace(regex, (match) => {
-                                    return "<span style='" + theme_active.KEYWORDS + "'>" + match + "</span>";
+                                    let semicolon = "";
+                                    if (match[0] == ";") {
+                                        semicolon = ";"; match = match.substring(1);
+                                    }
+                                    return semicolon + "<span style='" + theme_active.KEYWORDS + "'>" + match + "</span>";
                                 });
                             }
                         }
@@ -273,7 +279,7 @@ var COBE = (function () {
                         }
                     }
                     else { // lines[i] has no comment
-                        if ( !lines[i].match(/\s*.*#.*/) ) { // lines[i] has no preprocessor directives starting with "#"
+                        if ( !lines[i].match(/.*#[a-zA-Z0-9_!/]/) ) { // lines[i] has no preprocessor directives starting with "#"
                             //
                             // format type-keywords
                             regex = new RegExp(DEFAULT_REGEX_TYPES, "gi"); // RegExp object (for keywords) => slower than RegExp Literal Notation "/../i" where flag "i" is for ignoring case-sensitive
@@ -284,7 +290,11 @@ var COBE = (function () {
                             // format control-keywords
                             regex = new RegExp(DEFAULT_REGEX_KEYWORDS, "gi"); // RegExp object (for keywords) => slower than RegExp Literal Notation "/../i" where flag "i" is for ignoring case-sensitive
                             lines[i] = lines[i].replace(regex, (match) => {
-                                return "<span style='" + theme_active.KEYWORDS + "'>" + match + "</span>";
+                                let semicolon = "";
+                                if (match[0] == ";") {
+                                    semicolon = ";"; match = match.substring(1);
+                                }
+                                return semicolon + "<span style='" + theme_active.KEYWORDS + "'>" + match + "</span>";
                             });
                         }
                         else{
