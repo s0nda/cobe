@@ -58,7 +58,7 @@ var COBE = (function () {
     const DEFAULT_CSS_STYLE = {
         FONT : "font-size: 14px; font-weight: normal; font-style: normal;"
              + "font-family: Consolas, Menlo , Monaco, 'Lucida Console', 'Liberation Mono', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', 'Courier New', monospace, 'sans-serif';",
-        PARENT : "display: inline-block;", // style for <div> parent, that contains the <pre> code block
+        PARENT : "display: inline-block; width: 100%;", // style for <div> parent, that contains the <pre> code block
         CHILD_NUMBER   : "float:left; overflow-x: scroll; text-align: right; padding-left: 4px; padding-right: 8px; padding-bottom: 9px;", // syle for left child (<div>) for numbering lines, <flex-grow> <flex-shrink> <flex-basis with unit>
         CHILD_PRE_CODE : "overflow-x: scroll; padding-left: 14px; padding-right: 8px; padding-bottom: 9px; " // style for right child (<pre>) for code
     };
