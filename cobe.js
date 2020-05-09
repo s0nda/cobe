@@ -1,5 +1,5 @@
 /**
- * cobe.js (The COde BEautifier
+ * cobe.js (The COde BEautifier)
  * 
  * Copyright 2018 - today 
  * Author: s0nda
