@@ -59,8 +59,8 @@ var COBE = (function () {
         FONT : "font-size: 14px; font-weight: normal; font-style: normal;"
              + "font-family: Consolas, Menlo , Monaco, 'Lucida Console', 'Liberation Mono', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', 'Courier New', monospace, 'sans-serif';",
         PARENT : "display: inline-block; width: 100%;", // style for <div> parent, that contains the <pre> code block
-        CHILD_NUMBER   : "float:left; overflow-x: scroll; text-align: right; padding-left: 4px; padding-right: 8px; padding-bottom: 9px;", // syle for left child (<div>) for numbering lines, <flex-grow> <flex-shrink> <flex-basis with unit>
-        CHILD_PRE_CODE : "overflow-x: scroll; padding-left: 14px; padding-right: 8px; padding-bottom: 9px; " // style for right child (<pre>) for code
+        CHILD_NUMBER   : "float:left; overflow-x: scroll; text-align: right; padding-left: 8px; padding-right: 8px; padding-top: 8px; padding-bottom: 9px;", // syle for left child (<div>) for numbering lines, <flex-grow> <flex-shrink> <flex-basis with unit>
+        CHILD_PRE_CODE : "overflow-x: scroll; padding-left: 14px; padding-right: 8px; padding-top: 8px; padding-bottom: 9px; " // style for right child (<pre>) for code
     };
     //
     // Themes for Appearance 
@@ -69,6 +69,7 @@ var COBE = (function () {
         DARK : {
             BACKGROUND : "background: #2E3436;",
             FONT_COLOR : "color: #fff;",
+            NUMBER_BACKGROUND: "background: #494949;",
             NUMBER_COLOR: "color: #c0b9b7;",
             COMMENTS : "color: #33ff46;",
             TYPES : "color: #4198ef;",
@@ -78,6 +79,7 @@ var COBE = (function () {
         STANDARD : {
             BACKGROUND : "background: #cdcbcb;",
             FONT_COLOR : "color: #000;",
+            NUMBER_BACKGROUND: "background: #cdcbcb;",
             NUMBER_COLOR: "color: #000;",
             COMMENTS : "color: #000",
             TYPES : "color: #000;",
@@ -131,16 +133,6 @@ var COBE = (function () {
             //
             this.beautify();
         }, // END (init)
-
-        /*
-         * prepare
-         *
-         * Description:
-         * 
-         */
-        prepare : function () {
-
-        }, // END (prepare)
 
         /*
          * match_count
@@ -334,11 +326,17 @@ var COBE = (function () {
                     }
                 }
                 //
+                // Eliminate empty line(s)
+                //
+                if (lines[0] === "") {
+                    lines.shift(); // remove first line
+                }
+                if ( lines[lines.length-1].match(/\w/gi) == null ) { // if the line don't contain any alphanumerical word (\w)
+                    lines.pop(); // remove last line
+                }
+                //
                 // Join all lines to complete code.
                 //
-                if (lines[lines.length-1] === "") { // <empty line>
-                    lines.pop();
-                }
                 code = lines.join("\r\n");
                 //
                 // Format comments in code
@@ -350,7 +348,7 @@ var COBE = (function () {
                 // Apply CSS style to code block(s)
                 //
                 code_blocks[i].style = DEFAULT_CSS_STYLE.PARENT;
-                _div.style = DEFAULT_CSS_STYLE.FONT + DEFAULT_CSS_STYLE.CHILD_NUMBER + theme_active.BACKGROUND + theme_active.NUMBER_COLOR;
+                _div.style = DEFAULT_CSS_STYLE.FONT + DEFAULT_CSS_STYLE.CHILD_NUMBER + theme_active.BACKGROUND + theme_active.NUMBER_COLOR + theme_active.NUMBER_BACKGROUND;
                 _pre.style = DEFAULT_CSS_STYLE.FONT + DEFAULT_CSS_STYLE.CHILD_PRE_CODE + theme_active.BACKGROUND + theme_active.FONT_COLOR;
                 //
                 // Re-assign formatted code to block
@@ -359,10 +357,7 @@ var COBE = (function () {
                 //
                 // Numbering the code lines
                 //
-                if (lines[0] == "") { // first line is <empty string> ==> remove
-                    _div.innerHTML += "<br />";
-                }
-                for (let i = 1; i < lines.length; i++) { _div.innerHTML += i + "<br />"; }
+                for (let j = 1; j <= lines.length; j++) { _div.innerHTML += j + "<br />"; }
             }
         }, // END (beautify)
 
