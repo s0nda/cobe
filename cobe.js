@@ -11,10 +11,12 @@
  * https://developer.mozilla.org/de/docs/Web/JavaScript/Reference/Global_Objects/String/replace
  */
 
+var _this = (typeof window !== 'undefined') ? window : {};
+
 /*
  * COBE (COde BEautifier)
  */
-var COBE = (function () {
+var COBE = (function (_this) {
     //
     // Collections of keywords in code
     //
@@ -29,6 +31,10 @@ var COBE = (function () {
                                 +  "|^(" + DEFAULT_KEYWORDS + ")$"
                                 + "|;[ ]+(" + DEFAULT_KEYWORDS + ")"; // Bash syntax: <while> ... ; <do>
     const DEFAULT_REGEX_DIRECTIVES = "\\b" + DEFAULT_DIRECTIVES + "\\b(?=.*(\r?\n|\r))";
+    //
+    // RegExp for function-keywords
+    //
+    const DEFAULT_REGEX_FUNCTIONS = "\\b\\w+\\b(?=[ ]*\\()";
     //
     // RegExp for code comments. Support single- and multiple-line comments as follows:
     // (1)  # <comment>
@@ -63,42 +69,32 @@ var COBE = (function () {
         CHILD_PRE_CODE : "overflow-x: scroll; padding-left: 14px; padding-right: 8px; padding-top: 8px; padding-bottom: 9px; " // style for right child (<pre>) for code
     };
     //
-    // Themes for Appearance 
-    //
-    const DEFAULT_THEMES = {
-        DARK : {
-            BACKGROUND : "background: #2E3436;",
-            FONT_COLOR : "color: #fff;",
-            NUMBER_BACKGROUND: "background: #494949;",
-            NUMBER_COLOR: "color: #c0b9b7;",
-            COMMENTS : "color: #33ff46;",
-            TYPES : "color: #4198ef;",
-            KEYWORDS : "color: #f99df2;",
-            DIRECTIVES : "color: #fcb246;"
-        },
-        STANDARD : {
-            BACKGROUND : "background: #cdcbcb;",
-            FONT_COLOR : "color: #000;",
-            NUMBER_BACKGROUND: "background: #cdcbcb;",
-            NUMBER_COLOR: "color: #000;",
-            COMMENTS : "color: #000",
-            TYPES : "color: #000;",
-            KEYWORDS : "color: #000;",
-            DIRECTIVES : "color: #000;"
-        }
-    };
-    //
     // Each code block (<pre>) is an array-element
     //
     let code_blocks = [];
     //
-    // Set active display theme
+    // Reference object for window.COBE
     //
-    let theme_active = null;
-    //
-    // Main program
-    //
-    return {
+    let _ = {
+        //
+        // Active theme
+        //
+        active_theme : null,
+        //
+        // Themes for appearence
+        //
+        themes : {
+            STANDARD : {
+                BACKGROUND : "background: #cdcbcb;",
+                FONT_COLOR : "color: #000;",
+                NUMBER_BACKGROUND: "background: #cdcbcb;",
+                NUMBER_COLOR: "color: #000;",
+                COMMENTS : "color: #000",
+                TYPES : "color: #000;",
+                KEYWORDS : "color: #000;",
+                DIRECTIVES : "color: #000;"
+            }
+        },
         /*
          * init
          *
@@ -112,7 +108,7 @@ var COBE = (function () {
             //
             // Set active theme
             //
-            theme_active = DEFAULT_THEMES.DARK;
+            this.active_theme = this.themes.DARK; // "this" refers to "_" == "_this.COBE" == "window.COBE"
             //
             // Add new function to String prototype to escape special signs
             //
@@ -129,11 +125,10 @@ var COBE = (function () {
                 };
             }
             //
-            // Start making code prettier
+            // Start making code pretty
             //
             this.beautify();
         }, // END (init)
-
         /*
          * match_count
          *
@@ -151,11 +146,217 @@ var COBE = (function () {
                      || [] /* The [] protects this function from crash if str.match(reg) returns null */
                     ).length;
         }, // END (match_count);
-
+        /*
+         * format_indents
+         *
+         * Description: Format line indents (Bearbeitung der Zeileneinrückungen).
+         *      An indent (at the beginning of a line) may be tabulator(s) (\t, \x09), empty space(s) ([ ]) or white space(s) (\s).
+         *      This function recognizes and do format all of them.
+         * For example: Given the following code inside a <pre> block:
+         *
+         * <pre>
+         * ____#include <stdio.h>
+         * ____int main (int argc, char * argv[]) {
+         * ________printf("Hello World!\n");
+         * ________return 0;
+         * ____}
+         * </pre>
+         *
+         * The function "format_indents()" will detect all indents in every line. In the above <pre> block,
+         * we see there are 2 kinds of indents. The first (1) kind is 4 spaces long (____). The second (2) kind
+         * is 8 spaces long (________). Then, the function will determine the minimum of them, in this case
+         * the minimum is (1) with 4 spaces => min := 4. For lines with indent (1) of 4 spaces (____), we simply
+         * remove all indents => 4 - 4 = 0 space. For lines with indent (2) of 8 spaces (________), we remove 4
+         * of them => 8 - min = 8 - 4 = 4 spaces.
+         *
+         * On web page, the code with formatted indents will look as follows:
+         *
+         * #include <stdio.h>
+         * int main (int argc, char * argv[]) {
+         * ____printf("Hello World!\n");
+         * ____return 0;
+         * }
+         * 
+         * @params:
+         *      array: String array containing the code lines
+         *
+         * @return:
+         *      Array of code lines the indents of which are formatted
+         */
+        format_indents : function (array) {
+            //
+            let lines = array;
+            //
+            // Search for the white spaces (\t or \x09 (tabulators), \s or [ ] (empty spaces)) in the beginning of line (line indents).
+            //
+            let mint = 25, // (default) number of tabulator (\t, \x09) in the beginning of line. Then, determine the smallest of these numbers (minimum).
+                mins = 25; // (default) number of white spaces (\s) in the beginning of line. Then, determine the smallest of these numbers (minimum).
+                            // Note that an \s also contains \n,\t,[ ] etc.
+            let counts = {
+                tabus : [], // this array contains the number of tabulators (\tab) in beginning of each line.
+                spaces : []  // this array contains the number of (empty) spaces, but not \tab, in beginning of each line
+            }
+            lines.forEach( (line, line_index) => { // Iterate through every single line
+                let zeile = line.trimEnd(); // single line
+                if (zeile.trimStart()) { // if (line.trim() !== "")  <== not empty string
+                    //
+                    // Match all tabulators (\t, \x09) in the beginning of line.
+                    // g: (global flag) match all, set RegEx.lastIndex = 0 (first index)
+                    // y: (sticky flag) match only from starting position given in property RegEx.lastIndex
+                    // URL: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp/sticky
+                    // in this case (use only sticky flag 'y'), RegEx.lastIndex should be 0 (first index). Thus, the regex will search for match
+                    // from the beginning of line; if found, only the first match is returned. Not all matches. But with the 'g' flag, it will
+                    // search for all matches in the given string.
+                    //let rex = /\t/y; rex.lastIndex = 0; // set RegEx.lastIndex to 0. That is the first position to begin searching for match.
+                    //const ct = COBE.match_count(zeile, /\t/y);
+                    const ct = COBE.match_count(zeile, /\t/gy); // short form: combine 'global' (g) and 'sticky' flag (y), since 'g' sets lastIndex = 0 first, then 'g' is ignored and 'y' is started.
+                    //
+                    // Match all white spaces (\s) in the beginning of line. Similar to the above case with tabulators (\t).
+                    // Then subtract <ct> from "COBE.match_count(zeile, /\s/gy)", because an \s corresponds to \n,\t,[ ] etc.
+                    //let rex = /\s/y; rex.lastIndex = 0; // set RegEx.lastIndex to 0. That is the first position to begin searching for match.
+                    //const cs = COBE.match_count(zeile, /\s/y) - ct;
+                    const cs = COBE.match_count(zeile, /\s/gy) - ct; // short form: combine 'global' (g) and 'sticky' flag (y), since 'g' sets lastIndex = 0 first, then 'g' is ignored and 'y' is started.
+                    //
+                    // Add values to arrays
+                    counts.tabus.push(ct);
+                    counts.spaces.push(cs);
+                    //
+                    // Update minimum value (in a single line).
+                    if (ct < mint) { mint = ct; }
+                    if (cs < mins) { mins = cs; }
+                }
+                else { // if line is empty, then push zero (0) to the arrays respectively => zero tabulator
+                    counts.tabus.push(0);
+                    counts.spaces.push(0);
+                }
+            });
+            //
+            // Process lines with (overfilled) \tabs
+            //
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i].trim(); // remove all white spaces (\t,\r,\n,\f, etc.) in beginning and end of line.
+                if (line) { // if trimmed line is not empty.
+                    lines[i] = line; // remove all white spaces (\t,\r,\n,\f, etc.) in beginning and end of line.
+                    // Replace 1x \t (tabulator) by 4x dot spaces
+                    for (let j = 0; j < (counts.tabus[i]-mint); j++) { // Reduziert die Anzahl von \t (tabulators) auf ein Minimum "mint"
+                        lines[i] = "    " + lines[i]; // 1x \t (tabulator) = 4x dot spaces
+                    }
+                    // Replace 1x dot space also by 1x dot space
+                    for (let j = 0; j < (counts.spaces[i]-mins); j++) {
+                        lines[i] = " " + lines[i];
+                    }
+                }
+            }
+            //
+            return lines;
+        }, // END (format_indents)
+        /*
+         * format_keywords
+         *
+         * Description: Detect and format keywords (control, types) and directives in every code line
+         *
+         * For "RegExp Object", to escape the special characters (e.g. star (*)) in string, use the double-backslash (\\) => for example: \\*
+         *
+         *      Literal notation        |       RexExp Object string        |       Meaning
+         *  ============================+===================================+===========================================================
+         *          \b                  |           "\\b"                   |   Wortgrenze
+         *          \s                  |           "\\s"                   |   White space (empty space, \n, \t, etc...)
+         *          \/                  |           "/"                     |   A normal slash "/"
+         *          \/\/                |           "//"                    |   Double-slashes for comments, e.g. "// <comments>"
+         *          \*                  |           "\\*"                   |   The star (*) sign for comments, e.g. "/* <comments 
+         *          \(                  |           "\\("                   |   The left parenthese "("
+         *          \)                  |           "\\)"                   |   The right parenthese ")"
+         *
+         * Use the "Lookahead Assertion" : "x(?=y)"
+         * @params:
+         *      array: String array containing the code lines
+         * 
+         * @return:
+         *      Array of code lines the keywords of which are formatted
+         */
+        format_keywords : function (array) {
+            //
+            let lines = array;
+            //
+            for (let i = 0; i < lines.length; i++) {
+                let index_comment = lines[i].search(/\s*(\/\/|\*|#[ ]+.*).*/g); // index of the first occurence of the <comment> pattern like "// <comment>" or "/* <comment> */" or "# <comment>"
+                if (index_comment != -1) { // lines[i] contains comment (/* <comment> */ or // <comment>)
+                    //
+                    // Detect and format type-keywords
+                    //
+                    regex = new RegExp(DEFAULT_REGEX_TYPES, "gi"); // RegExp object (for types-keyword) => slower than RegExp Literal Notation "/../i" where flag "i" is for ignoring case-sensitive
+                    if (index_comment > lines[i].search(regex)) { // keyword is outside of comment => color keyword
+                        if ( !lines[i].match(/.*#[a-zA-Z0-9_!/]/) ) { // lines[i] has no preprocessor directives starting with "#"
+                            lines[i] = lines[i].replace(regex, (match) => {
+                                return "<span style='" + this.active_theme.TYPES + "'>" + match + "</span>";
+                            });
+                        }
+                    }
+                    //
+                    // Detect and format control-keywords
+                    //
+                    regex = new RegExp(DEFAULT_REGEX_KEYWORDS, "gi"); // RegExp object (for keywords) => slower than RegExp Literal Notation "/../i" where flag "i" is for ignoring case-sensitive
+                    if (index_comment > lines[i].search(regex)) { // keyword is outside of comment => color keyword
+                        if ( !lines[i].match(/.*#[a-zA-Z0-9_!/]/) ) { // lines[i] has no preprocessor directives starting with "#"
+                            lines[i] = lines[i].replace(regex, (match) => {
+                                let semicolon = "";
+                                if (match[0] == ";") {
+                                    semicolon = ";"; match = match.substring(1);
+                                }
+                                return semicolon + "<span style='" + this.active_theme.KEYWORDS + "'>" + match + "</span>";
+                            });
+                        }
+                    }
+                    //
+                    // Detect and format directive-keywords
+                    //
+                    regex = new RegExp(DEFAULT_REGEX_DIRECTIVES, "gi"); // RegExp object (for preprocessor directives)
+                    if (index_comment > lines[i].search(regex)) { // directives is outside of comment => color directive
+                        lines[i] = lines[i].replace(regex, (match) => {
+                            return "<span style='" + this.active_theme.DIRECTIVES + "'>" + match + "</span>";
+                        });
+                    }
+                }
+                else { // if lines[i] has no comment
+                    if ( !lines[i].match(/.*#[a-zA-Z0-9_!/]/) ) { // lines[i] has no preprocessor directives starting with "#"
+                        //
+                        // Detect and format type-keywords
+                        //
+                        regex = new RegExp(DEFAULT_REGEX_TYPES, "gi"); // RegExp object (for keywords) => slower than RegExp Literal Notation "/../i" where flag "i" is for ignoring case-sensitive
+                        lines[i] = lines[i].replace(regex, (match) => {
+                            return "<span style='" + this.active_theme.TYPES + "'>" + match + "</span>";
+                        });
+                        //
+                        // Detect and format control-keywords
+                        //
+                        regex = new RegExp(DEFAULT_REGEX_KEYWORDS, "gi"); // RegExp object (for keywords) => slower than RegExp Literal Notation "/../i" where flag "i" is for ignoring case-sensitive
+                        lines[i] = lines[i].replace(regex, (match) => {
+                            let semicolon = "";
+                            if (match[0] == ";") {
+                                semicolon = ";"; match = match.substring(1);
+                            }
+                            return semicolon + "<span style='" + this.active_theme.KEYWORDS + "'>" + match + "</span>";
+                        });
+                    }
+                    else{
+                        //
+                        // Detect and format directive-keywords
+                        //
+                        regex = new RegExp(DEFAULT_REGEX_DIRECTIVES, "i"); // RegExp object (for preprocessor directives)
+                        lines[i] = lines[i].replace(regex, (match) => {
+                            return "<span style='" + this.active_theme.DIRECTIVES + "'>" + match + "</span>";
+                        });
+                    }
+                }
+            }
+            //
+            return lines;
+        }, // END (format_keywords)
         /*
          * beautify
          *
-         * Description: Format and make the code pretty
+         * Description: [Main program] Format and make the code pretty
+         * 
          */
         beautify : function () {
             for (let i = 0; i < code_blocks.length; i++) {
@@ -185,153 +386,28 @@ var COBE = (function () {
                                          //   => Line-feed / Carriage-return: \r\n (Win/DOS), \r (older Macs), \n (Linux/Unix)
                 let lines = code.split(regex);
                 //
-                // Search for the white spaces (\t or \x09 (tabulators), \s or [ ] (empty spaces)) in the beginning of line.
+                // Search for and format the indents (tabulator(s) (\t, \x09), white/empty space(s) (\s, [ ]) in the beginning of line.
                 //
-                let mint = 25, // (default) number of tabulator (\t, \x09) in the beginning of line. Then, determine the smallest of these numbers (minimum).
-                    mins = 25; // (default) number of white spaces (\s) in the beginning of line. Then, determine the smallest of these numbers (minimum).
-                               // Note that an \s also contains \n,\t,[ ] etc.
-                let counts = {
-                    tabus : [], // this array contains the number of tabulators (\tab) in beginning of each line.
-                    spaces : []  // this array contains the number of (empty) spaces, but not \tab, in beginning of each line
-                }
-                lines.forEach( (line, line_index) => { // Iterate through every single line
-                    let zeile = line.trimEnd(); // single line
-                    if (zeile.trimStart()) { // if (line.trim() !== "")  <== not empty string
-                        //
-                        // Match all tabulators (\t, \x09) in the beginning of line.
-                        // g: (global flag) match all, set RegEx.lastIndex = 0 (first index)
-                        // y: (sticky flag) match only from starting position given in property RegEx.lastIndex
-                        // URL: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp/sticky
-                        // in this case (use only sticky flag 'y'), RegEx.lastIndex should be 0 (first index). Thus, the regex will search for match
-                        // from the beginning of line; if found, only the first match is returned. Not all matches. But with the 'g' flag, it will
-                        // search for all matches in the given string.
-                        //let rex = /\t/y; rex.lastIndex = 0; // set RegEx.lastIndex to 0. That is the first position to begin searching for match.
-                        //const ct = COBE.match_count(zeile, /\t/y);
-                        const ct = COBE.match_count(zeile, /\t/gy); // short form: combine 'global' (g) and 'sticky' flag (y), since 'g' sets lastIndex = 0 first, then 'g' is ignored and 'y' is started.
-                        //
-                        // Match all white spaces (\s) in the beginning of line. Similar to the above case with tabulators (\t).
-                        // Then subtract <ct> from "COBE.match_count(zeile, /\s/gy)", because an \s corresponds to \n,\t,[ ] etc.
-                        //let rex = /\s/y; rex.lastIndex = 0; // set RegEx.lastIndex to 0. That is the first position to begin searching for match.
-                        //const cs = COBE.match_count(zeile, /\s/y) - ct;
-                        const cs = COBE.match_count(zeile, /\s/gy) - ct; // short form: combine 'global' (g) and 'sticky' flag (y), since 'g' sets lastIndex = 0 first, then 'g' is ignored and 'y' is started.
-                        //
-                        // Add values to arrays
-                        counts.tabus.push(ct);
-                        counts.spaces.push(cs);
-                        //
-                        // Update minimum value (in a single line).
-                        if (ct < mint) { mint = ct; }
-                        if (cs < mins) { mins = cs; }
-                    }
-                    else { // if line is empty, then push zero (0) to the arrays respectively => zero tabulator
-                        counts.tabus.push(0);
-                        counts.spaces.push(0);
-                    }
-                });
+                lines = this.format_indents(lines);
                 //
-                // Process lines with (overfilled) \tabs
+                // Detect and format keywords (control, types) and directives in every code line
+                //
+                lines = this.format_keywords(lines);
+                //
+                // #ToDo
                 //
                 for (let i = 0; i < lines.length; i++) {
-                    let line = lines[i].trim(); // remove all white spaces (\t,\r,\n,\f, etc.) in beginning and end of line.
-                    if (line) { // if trimmed line is not empty.
-                        lines[i] = line; // remove all white spaces (\t,\r,\n,\f, etc.) in beginning and end of line.
-                        // Replace 1x \t (tabulator) by 4x dot spaces
-                        for (let j = 0; j < (counts.tabus[i]-mint); j++) { // Reduziert die Anzahl von \t (tabulators) auf ein Minimum "mint"
-                            lines[i] = "    " + lines[i]; // 1x \t (tabulator) = 4x dot spaces
-                        }
-                        // Replace 1x dot space also by 1x dot space
-                        for (let j = 0; j < (counts.spaces[i]-mins); j++) {
-                            lines[i] = " " + lines[i];
-                        }
-                    }
-                }
-                //
-                // Format every code line
-                //
-                // For "RegExp Object", to escape the special characters (e.g. star (*)) in string, use the double-backslash (\\) => for example: \\*
-                //
-                //      Literal notation        |       RexExp Object string        |       Meaning
-                //  ============================+===================================+===========================================================
-                //          \b                  |           "\\b"                   |   Wortgrenze
-                //          \s                  |           "\\s"                   |   White space (empty space, \n, \t, etc...)
-                //          \/                  |           "/"                     |   A normal slash "/"
-                //          \/\/                |           "//"                    |   Double-slashes for comments, e.g. "// <comments>"
-                //          \*                  |           "\\*"                   |   The star (*) sign for comments, e.g. "/* <comments */"
-                //
-                // Use the "Lookahead Assertion" : "x(?=y)"
-                //
-                for (let i = 0; i < lines.length; i++) {
-                    let index_comment = lines[i].search(/\s*(\/\/|\*|#[ ]+.*).*/g); // index of the first occurence of the <comment> pattern like "// <comment>" or "/* <comment> */" or "# <comment>"
-                    if (index_comment != -1) { // lines[i] contains comment (/* <comment> */ or // <comment>)
-                        //
-                        // format type-keywords
-                        regex = new RegExp(DEFAULT_REGEX_TYPES, "gi"); // RegExp object (for types-keyword) => slower than RegExp Literal Notation "/../i" where flag "i" is for ignoring case-sensitive
-                        if (index_comment > lines[i].search(regex)) { // keyword is outside of comment => color keyword
-                            if ( !lines[i].match(/.*#[a-zA-Z0-9_!/]/) ) { // lines[i] has no preprocessor directives starting with "#"
-                                lines[i] = lines[i].replace(regex, (match) => {
-                                    return "<span style='" + theme_active.TYPES + "'>" + match + "</span>";
-                                });
-                            }
-                        }
-                        //
-                        // format control-keywords
-                        regex = new RegExp(DEFAULT_REGEX_KEYWORDS, "gi"); // RegExp object (for keywords) => slower than RegExp Literal Notation "/../i" where flag "i" is for ignoring case-sensitive
-                        if (index_comment > lines[i].search(regex)) { // keyword is outside of comment => color keyword
-                            if ( !lines[i].match(/.*#[a-zA-Z0-9_!/]/) ) { // lines[i] has no preprocessor directives starting with "#"
-                                lines[i] = lines[i].replace(regex, (match) => {
-                                    let semicolon = "";
-                                    if (match[0] == ";") {
-                                        semicolon = ";"; match = match.substring(1);
-                                    }
-                                    return semicolon + "<span style='" + theme_active.KEYWORDS + "'>" + match + "</span>";
-                                });
-                            }
-                        }
-                        //
-                        // format directive-keywords
-                        regex = new RegExp(DEFAULT_REGEX_DIRECTIVES, "gi"); // RegExp object (for preprocessor directives)
-                        if (index_comment > lines[i].search(regex)) { // directives is outside of comment => color directive
-                            lines[i] = lines[i].replace(regex, (match) => {
-                                return "<span style='" + theme_active.DIRECTIVES + "'>" + match + "</span>";
-                            });
-                        }
-                    }
-                    else { // lines[i] has no comment
-                        if ( !lines[i].match(/.*#[a-zA-Z0-9_!/]/) ) { // lines[i] has no preprocessor directives starting with "#"
-                            //
-                            // format type-keywords
-                            regex = new RegExp(DEFAULT_REGEX_TYPES, "gi"); // RegExp object (for keywords) => slower than RegExp Literal Notation "/../i" where flag "i" is for ignoring case-sensitive
-                            lines[i] = lines[i].replace(regex, (match) => {
-                                return "<span style='" + theme_active.TYPES + "'>" + match + "</span>";
-                            });
-                            //
-                            // format control-keywords
-                            regex = new RegExp(DEFAULT_REGEX_KEYWORDS, "gi"); // RegExp object (for keywords) => slower than RegExp Literal Notation "/../i" where flag "i" is for ignoring case-sensitive
-                            lines[i] = lines[i].replace(regex, (match) => {
-                                let semicolon = "";
-                                if (match[0] == ";") {
-                                    semicolon = ";"; match = match.substring(1);
-                                }
-                                return semicolon + "<span style='" + theme_active.KEYWORDS + "'>" + match + "</span>";
-                            });
-                        }
-                        else{
-                            //
-                            // format directive-keywords
-                            regex = new RegExp(DEFAULT_REGEX_DIRECTIVES, "i"); // RegExp object (for preprocessor directives)
-                            lines[i] = lines[i].replace(regex, (match) => {
-                                return "<span style='" + theme_active.DIRECTIVES + "'>" + match + "</span>";
-                            });
-                        }
-                    }
+                    lines[i] = lines[i].replace(new RegExp(DEFAULT_REGEX_FUNCTIONS, "i"), match => {
+                        return "<span style='color: red;'>" + match + "</span>";
+                    });
                 }
                 //
                 // Eliminate empty line(s)
                 //
-                if (lines[0] === "") {
+                if (lines[0] === "") {  // if first line is empty
                     lines.shift(); // remove first line
                 }
-                if ( lines[lines.length-1].match(/\w/gi) == null ) { // if the line don't contain any alphanumerical word (\w)
+                if ( lines[lines.length-1].match(/\w/gi) == null ) { // if last line doesn't contain any alphanumerical word (\w)
                     lines.pop(); // remove last line
                 }
                 //
@@ -342,26 +418,48 @@ var COBE = (function () {
                 // Format comments in code
                 //
                 code = code.replace(DEFAULT_REGEX_COMMENTS, (match, p, offset, string) => {
-                    return "<span style='" + theme_active.COMMENTS + "'>" + match + "</span>";
+                    return "<span style='" + this.active_theme.COMMENTS + "'>" + match + "</span>";
                 });
                 //
-                // Apply CSS style to code block(s)
+                // Apply CSS style to number-block(s) and code-block(s)
                 //
                 code_blocks[i].style = DEFAULT_CSS_STYLE.PARENT;
-                _div.style = DEFAULT_CSS_STYLE.FONT + DEFAULT_CSS_STYLE.CHILD_NUMBER + theme_active.BACKGROUND + theme_active.NUMBER_COLOR + theme_active.NUMBER_BACKGROUND;
-                _pre.style = DEFAULT_CSS_STYLE.FONT + DEFAULT_CSS_STYLE.CHILD_PRE_CODE + theme_active.BACKGROUND + theme_active.FONT_COLOR;
+                _div.style = DEFAULT_CSS_STYLE.FONT + DEFAULT_CSS_STYLE.CHILD_NUMBER + this.active_theme.BACKGROUND + this.active_theme.NUMBER_COLOR + this.active_theme.NUMBER_BACKGROUND;
+                _pre.style = DEFAULT_CSS_STYLE.FONT + DEFAULT_CSS_STYLE.CHILD_PRE_CODE + this.active_theme.BACKGROUND + this.active_theme.FONT_COLOR;
                 //
-                // Re-assign formatted code to block
+                // Assign formatted code to block
                 //
                 _pre.innerHTML = code;
                 //
-                // Numbering the code lines
+                // Numbering the code lines / Write numbers in number-block(s)
                 //
                 for (let j = 1; j <= lines.length; j++) { _div.innerHTML += j + "<br />"; }
             }
         }, // END (beautify)
-
-    }
-})();
+    }; // END (_)
+    //
+    // Assign properties object to COBE
+    //
+    _this.COBE = _; // window.COBE = _
+    //
+    // Provide COBE instance with all properties
+    //
+    return _;
+})(_this);
+//
 // Note: Arrow function loses its own bindings to 'this', 'arguments', 'super' or 'new.target'
+//
 document.addEventListener("DOMContentLoaded", () => COBE.init(), false);
+//
+// Add new themes for COBE
+//
+COBE.themes.DARK = {
+    BACKGROUND : "background: #2E3436;",
+    FONT_COLOR : "color: #fff;",
+    NUMBER_BACKGROUND: "background: #494949;",
+    NUMBER_COLOR: "color: #c0b9b7;",
+    COMMENTS : "color: #33ff46;",
+    TYPES : "color: #4198ef;",
+    KEYWORDS : "color: #f99df2;",
+    DIRECTIVES : "color: #fcb246;"
+};
