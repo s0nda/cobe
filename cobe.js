@@ -18,25 +18,28 @@ var _this = (typeof window !== 'undefined') ? window : {};
  */
 var COBE = (function (_this) {
     //
+    // Define new String function(s)
+    //
+    String.prototype.replaceAt = function (substr, newsubstr, index) {
+        return this.substring(0, index) + newsubstr + this.substring(index + substr.length);
+    };
+    //
     // Collections of keywords in code
     //
-    const DEFAULT_TYPES = "unsigned|byte|char|int|float|double|void";
+    const DEFAULT_TYPES = "unsigned|byte|char|int|float|double|void|const|static";
     const DEFAULT_KEYWORDS = "if|then|else|fi|for|do|while|done|break|continue|return|switch|case|default|in";
     const DEFAULT_DIRECTIVES = "#pseudoA|#include|#ifdef|#ifndef|#define|#endif|#!/bin/bash|#pseudoB"; // Workaround: Must add "pseudoA" at beginning and "#pseudoB" at the end. Otherwise, the first (#include) and last (#endif) directive will not be recognized.
     //
     // RegExp for keywords (types, control-keywords, directives) in code
     //
-    const DEFAULT_REGEX_TYPES = "((const|static|)[ ]+)?(" + DEFAULT_TYPES + ")[ ]+(\\*)?"; // double-backslash (\\) to escape the start (*)
+    const DEFAULT_REGEX_TYPES = "\\b(" + DEFAULT_TYPES + ")\\b[ ]+(\\*)?"; // double-backslash (\\) to escape the start (*)
     const DEFAULT_REGEX_KEYWORDS = "\\b(" + DEFAULT_KEYWORDS + ")\\b(?=[ ]*.*(;|:|((\r?\n|\r)?{|})))"
                                 +  "|^(" + DEFAULT_KEYWORDS + ")$"
                                 + "|;[ ]+(" + DEFAULT_KEYWORDS + ")"; // Bash syntax: <while> ... ; <do>
     const DEFAULT_REGEX_DIRECTIVES = "\\b" + DEFAULT_DIRECTIVES + "\\b(?=.*(\r?\n|\r))";
     //
-    // RegExp for function-keywords
-    //
-    const DEFAULT_REGEX_FUNCTIONS = "\\b\\w+\\b(?=[ ]*\\()";
-    //
     // RegExp for code comments. Support single- and multiple-line comments as follows:
+    // (0)  #
     // (1)  # <comment>
     // (2)  // <comment>
     // (3)  /* <comment> */
@@ -44,16 +47,16 @@ var COBE = (function (_this) {
     //       * <comments> multiple-line
     //       */
     //
-    // The regular expressions (in Literal Notation /regexp/g) for (1), (2), (3), (4) respectively are:
-    // (0) #[ ]*(\r?\n|\r)
-    // (1) #[ ]+.*[ ]*(\r?\n|\r)
-    // (2) \/\/[ ]*.*[ ]*(\r?\n|\r)  <== The special sign (slash '/') must be escaped with backslash ('\') to '\/'.
-    // (3) \/\*[ ]*.*[ ]*\*\/        <== The special sign (start '*') must be escaped with backslash ('\') to '\*'.
-    // (4) \/\*([ ]*.*[ ]*(\r?\n|\r)[ ]*\*)+\*?\/(\r?\n|\r)
+    // The regular expressions (in Literal Notation /regexp/g) for (0), (1), (2), (3), (4) respectively are:
+    // (0)  #[ ]*(\r?\n|\r)
+    // (1)  #[ ]+.*[ ]*(\r?\n|\r)?
+    // (2)  \/\/[ ]*.*[ ]*(\r?\n|\r)?  <== The special sign (slash '/') must be escaped with backslash ('\') to '\/'.
+    // (3)  \/\*[ ]*.*[ ]*\*\/        <== The special sign (start '*') must be escaped with backslash ('\') to '\*'.
+    // (4)  \/\*([ ]*.*[ ]*(\r?\n|\r)[ ]*\*)+\*?\/(\r?\n|\r)
     //
-    // The 4 regular expressions above are combined by OR ('|') operator. Moreover, global ('g') flag is used.
+    // The 5 regular expressions above are combined by OR ('|') operator. Moreover, global ('g') flag is used.
     //
-    const DEFAULT_REGEX_COMMENTS = /#[ ]*(\r?\n|\r)|#[ ]+.*[ ]*(\r?\n|\r)|\/\/[ ]*.*[ ]*(\r?\n|\r)|\/\*[ ]*.*[ ]*\*\/|\/\*([ ]*.*[ ]*(\r?\n|\r)[ ]*\*)+\*?\/(\r?\n|\r)/g; // Line-feed / Carriage-return: \r\n (Win/DOS), \r (older Macs), \n (Linux/Unix)
+    const DEFAULT_REGEX_COMMENTS = /#[ ]*(\r?\n|\r)|#[ ]+.*[ ]*(\r?\n|\r)?|\/\/[ ]*.*[ ]*(\r?\n|\r)?|\/\*[ ]*.*[ ]*\*\/|\/\*([ ]*.*[ ]*(\r?\n|\r)[ ]*\*)+\*?\/(\r?\n|\r)/g; // Line-feed / Carriage-return: \r\n (Win/DOS), \r (older Macs), \n (Linux/Unix)
     //
     // CSS seletor(s)
     //
@@ -65,17 +68,17 @@ var COBE = (function (_this) {
         FONT : "font-size: 14px; font-weight: normal; font-style: normal;"
              + "font-family: Consolas, Menlo , Monaco, 'Lucida Console', 'Liberation Mono', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', 'Courier New', monospace, 'sans-serif';",
         PARENT : "display: inline-block; width: 100%;", // style for <div> parent, that contains the <pre> code block
-        CHILD_NUMBER   : "float:left; overflow-x: scroll; text-align: right; padding-left: 8px; padding-right: 8px; padding-top: 8px; padding-bottom: 9px;", // syle for left child (<div>) for numbering lines, <flex-grow> <flex-shrink> <flex-basis with unit>
+        CHILD_NUMBER   : "overflow-x: scroll; float:left; text-align: right; padding-left: 8px; padding-right: 8px; padding-top: 8px; padding-bottom: 9px;", // syle for left child (<div>) for numbering lines, <flex-grow> <flex-shrink> <flex-basis with unit>
         CHILD_PRE_CODE : "overflow-x: scroll; padding-left: 14px; padding-right: 8px; padding-top: 8px; padding-bottom: 9px; " // style for right child (<pre>) for code
     };
-    //
-    // Each code block (<pre>) is an array-element
-    //
-    let code_blocks = [];
     //
     // Reference object for window.COBE
     //
     let _ = {
+        //
+        // Each code block (div.cobe) is an element in an array
+        //
+        blocks : [],
         //
         // Active theme
         //
@@ -83,32 +86,23 @@ var COBE = (function (_this) {
         //
         // Themes for appearence
         //
-        themes : {
-            STANDARD : {
-                BACKGROUND : "background: #cdcbcb;",
-                FONT_COLOR : "color: #000;",
-                NUMBER_BACKGROUND: "background: #cdcbcb;",
-                NUMBER_COLOR: "color: #000;",
-                COMMENTS : "color: #000",
-                TYPES : "color: #000;",
-                KEYWORDS : "color: #000;",
-                DIRECTIVES : "color: #000;"
-            }
-        },
+        themes : {},
         /*
          * init
          *
          * Description: Initialize values
          */
         init : function () {
-            code_blocks = document.querySelectorAll(DEFAULT_CSS_SELECTOR_CODE_BLOCKS) || [];
-            if ( code_blocks.length == 0 ) {
+            this.blocks = document.querySelectorAll(DEFAULT_CSS_SELECTOR_CODE_BLOCKS) || [];
+            if ( this.blocks.length == 0 ) {
                 return;
             }
             //
             // Set active theme
             //
-            this.active_theme = this.themes.DARK; // "this" refers to "_" == "_this.COBE" == "window.COBE"
+            if ( !this.active_theme ) {
+                this.active_theme = this.themes["DARK"]; // "this" refers to "_" == "_this.COBE" == "window.COBE"
+            }
             //
             // Add new function to String prototype to escape special signs
             //
@@ -129,6 +123,26 @@ var COBE = (function (_this) {
             //
             this.beautify();
         }, // END (init)
+        /*
+         * set_theme
+         *
+         * Description: Set the (static) active theme for COBE
+         */
+        set_theme : function (theme_name) {
+            this.active_theme = this.themes[theme_name];
+        }, // END (set_theme)
+        /*
+         * switch_theme
+         *
+         * Description: Dynamically switch current theme for COBE
+         */
+        switch_theme : function (theme_name) {
+            this.set_theme(theme_name);
+            this.blocks.forEach (block => {
+                block.querySelector("div").style = DEFAULT_CSS_STYLE.FONT + DEFAULT_CSS_STYLE.CHILD_NUMBER + this.active_theme.BACKGROUND + this.active_theme.NUMBER_COLOR + this.active_theme.NUMBER_BACKGROUND;
+                block.querySelector("pre").style = DEFAULT_CSS_STYLE.FONT + DEFAULT_CSS_STYLE.CHILD_PRE_CODE + this.active_theme.BACKGROUND + this.active_theme.FONT_COLOR;
+            });
+        }, // END (switch_theme)
         /*
          * match_count
          *
@@ -279,26 +293,41 @@ var COBE = (function (_this) {
             let lines = array;
             //
             for (let i = 0; i < lines.length; i++) {
-                let index_comment = lines[i].search(/\s*(\/\/|\*|#[ ]+.*).*/g); // index of the first occurence of the <comment> pattern like "// <comment>" or "/* <comment> */" or "# <comment>"
+                let _line = lines[i];
+                let index_comment = _line.search(/(\/\/|\*|#[ ]+.*).*/); // index of the first occurence of the <comment> pattern like "// <comment>" or "/* <comment> */" or "# <comment>"
                 if (index_comment != -1) { // lines[i] contains comment (/* <comment> */ or // <comment>)
                     //
                     // Detect and format type-keywords
                     //
                     regex = new RegExp(DEFAULT_REGEX_TYPES, "gi"); // RegExp object (for types-keyword) => slower than RegExp Literal Notation "/../i" where flag "i" is for ignoring case-sensitive
-                    if (index_comment > lines[i].search(regex)) { // keyword is outside of comment => color keyword
-                        if ( !lines[i].match(/.*#[a-zA-Z0-9_!/]/) ) { // lines[i] has no preprocessor directives starting with "#"
-                            lines[i] = lines[i].replace(regex, (match) => {
-                                return "<span style='" + this.active_theme.TYPES + "'>" + match + "</span>";
-                            });
+                    if ( !lines[i].match(/.*#[a-zA-Z0-9_!/]/) ) { // lines[i] has no preprocessor directives starting with "#"
+                        let _zeile = _line;
+                        let _array = null;
+                        let _offset = 0;
+                        const _newLength = ("<span style='" + this.active_theme.TYPES + "'></span>").length;
+                        while ( (_array = regex.exec(_line)) ) {
+                            if (index_comment >= _array.index) { // keyword (_array[0]) is outside of comment => color keyword
+                                _zeile = _zeile.replaceAt(_array[0], "<span style='" + this.active_theme.TYPES + "'>" + _array[0] + "</span>", _array.index + _offset);
+                                _offset += _newLength;
+                            }
+                            else {
+                                if (_line.charAt(index_comment) === "*" && _line.charAt(index_comment-1) !== "/") {
+                                    if (_line.substring(0, index_comment).match(/\w/)) { // not comment line
+                                        _zeile = _zeile.replaceAt(_array[0], "<span style='" + this.active_theme.TYPES + "'>" + _array[0] + "</span>", _array.index + _offset);
+                                        _offset += _newLength;
+                                    }
+                                }
+                            }
                         }
+                        _line = _zeile;
                     }
                     //
                     // Detect and format control-keywords
                     //
                     regex = new RegExp(DEFAULT_REGEX_KEYWORDS, "gi"); // RegExp object (for keywords) => slower than RegExp Literal Notation "/../i" where flag "i" is for ignoring case-sensitive
                     if (index_comment > lines[i].search(regex)) { // keyword is outside of comment => color keyword
-                        if ( !lines[i].match(/.*#[a-zA-Z0-9_!/]/) ) { // lines[i] has no preprocessor directives starting with "#"
-                            lines[i] = lines[i].replace(regex, (match) => {
+                        if ( !lines[i].match(/.*#[a-zA-Z0-9_!/]/) ) { // lines[i] has no preprocessor directives starting with "#" (e.g. #include<stdio.h>), but comment like "# <comments>"
+                            _line = _line.replace(regex, (match) => {
                                 let semicolon = "";
                                 if (match[0] == ";") {
                                     semicolon = ";"; match = match.substring(1);
@@ -312,13 +341,40 @@ var COBE = (function (_this) {
                     //
                     regex = new RegExp(DEFAULT_REGEX_DIRECTIVES, "gi"); // RegExp object (for preprocessor directives)
                     if (index_comment > lines[i].search(regex)) { // directives is outside of comment => color directive
-                        lines[i] = lines[i].replace(regex, (match) => {
+                        _line = _line.replace(regex, (match) => {
                             return "<span style='" + this.active_theme.DIRECTIVES + "'>" + match + "</span>";
                         });
                     }
+                    //
+                    // Detect and format function-keywords
+                    //
+                    _index_comment = _line.search(/(\/\/|\*|#[ ]+.*).*/); // index of the first occurence of the <comment> pattern like "// <comment>" or "/* <comment> */" or "# <comment>"
+                    regex = /\b\w+\b(?=[ ]*\()/gi; // RegExp object (for types-keyword) => slower than RegExp Literal Notation "/../i" where flag "i" is for ignoring case-sensitive
+                    if ( !lines[i].match(/.*#[a-zA-Z0-9_!/]/) ) { // lines[i] has no preprocessor directives starting with "#"
+                        _zeile = _line;
+                        _array = null;
+                        _offset = 0;
+                        const _newLength_ = ("<span style='" + this.active_theme.FUNCTIONS + "'></span>").length;
+                        while ( (_array = regex.exec(_line)) ) {
+                            if (_index_comment >= _array.index) { // keyword (_array[0]) is outside of comment => color keyword
+                                _zeile = _zeile.replaceAt(_array[0], "<span style='" + this.active_theme.FUNCTIONS + "'>" + _array[0] + "</span>", _array.index + _offset);
+                                _offset += _newLength_;
+                            }
+                            else {
+                                if (_line.charAt(_index_comment) === "*" && _line.charAt(_index_comment-1) !== "/") {
+                                    if (_line.substring(0, _index_comment).match(/\w/)) { // not comment line
+                                        _zeile = _zeile.replaceAt(_array[0], "<span style='" + this.active_theme.FUNCTIONS + "'>" + _array[0] + "</span>", _array.index + _offset);
+                                        _offset += _newLength_;
+                                    }
+                                }
+                            }
+                        }
+                        _line = _zeile;
+                    }
+                    lines[i] = _line;
                 }
                 else { // if lines[i] has no comment
-                    if ( !lines[i].match(/.*#[a-zA-Z0-9_!/]/) ) { // lines[i] has no preprocessor directives starting with "#"
+                    if ( !lines[i].match(/.*#[a-zA-Z0-9_!/]/) ) { // lines[i] has no preprocessor directives starting with "#" (e.g. #include<stdio.h>), but comment like "# <comments>"
                         //
                         // Detect and format type-keywords
                         //
@@ -336,6 +392,12 @@ var COBE = (function (_this) {
                                 semicolon = ";"; match = match.substring(1);
                             }
                             return semicolon + "<span style='" + this.active_theme.KEYWORDS + "'>" + match + "</span>";
+                        });
+                        //
+                        // Detect and format function-keywords
+                        //
+                        lines[i] = lines[i].replace(/\b\w+\b(?=[ ]*\()/gi, (match) => {
+                            return "<span style='" + this.active_theme.FUNCTIONS + "'>" + match + "</span>";
                         });
                     }
                     else{
@@ -359,12 +421,12 @@ var COBE = (function (_this) {
          * 
          */
         beautify : function () {
-            for (let i = 0; i < code_blocks.length; i++) {
+            for (let i = 0; i < this.blocks.length; i++) {
                 //
                 // Get content of block. Escape special signs (characters).
                 //
-                let code = code_blocks[i].innerHTML.escapeHTML();
-                code_blocks[i].innerHTML = "";
+                let code = this.blocks[i].innerHTML.escapeHTML();
+                this.blocks[i].innerHTML = "";
                 //
                 // Create a new <div> element for numbering code lines
                 //
@@ -376,8 +438,8 @@ var COBE = (function (_this) {
                 //
                 // Append newly created elements to parent
                 //
-                code_blocks[i].appendChild(_div);
-                code_blocks[i].appendChild(_pre);
+                this.blocks[i].appendChild(_div);
+                this.blocks[i].appendChild(_pre);
                 //
                 // Split content (text) line-by-line separated by delimiter \n, \r\n, \r (line-feed, new-line).
                 //
@@ -393,14 +455,6 @@ var COBE = (function (_this) {
                 // Detect and format keywords (control, types) and directives in every code line
                 //
                 lines = this.format_keywords(lines);
-                //
-                // #ToDo
-                //
-                for (let i = 0; i < lines.length; i++) {
-                    lines[i] = lines[i].replace(new RegExp(DEFAULT_REGEX_FUNCTIONS, "i"), match => {
-                        return "<span style='color: red;'>" + match + "</span>";
-                    });
-                }
                 //
                 // Eliminate empty line(s)
                 //
@@ -423,7 +477,7 @@ var COBE = (function (_this) {
                 //
                 // Apply CSS style to number-block(s) and code-block(s)
                 //
-                code_blocks[i].style = DEFAULT_CSS_STYLE.PARENT;
+                this.blocks[i].style = DEFAULT_CSS_STYLE.PARENT;
                 _div.style = DEFAULT_CSS_STYLE.FONT + DEFAULT_CSS_STYLE.CHILD_NUMBER + this.active_theme.BACKGROUND + this.active_theme.NUMBER_COLOR + this.active_theme.NUMBER_BACKGROUND;
                 _pre.style = DEFAULT_CSS_STYLE.FONT + DEFAULT_CSS_STYLE.CHILD_PRE_CODE + this.active_theme.BACKGROUND + this.active_theme.FONT_COLOR;
                 //
@@ -461,5 +515,36 @@ COBE.themes.DARK = {
     COMMENTS : "color: #33ff46;",
     TYPES : "color: #4198ef;",
     KEYWORDS : "color: #f99df2;",
-    DIRECTIVES : "color: #fcb246;"
+    DIRECTIVES : "color: #fcb246;",
+    FUNCTIONS : "color: #fcfc81;"
 };
+COBE.themes.DARK_RETRO = {
+    BACKGROUND : "background-color: #0f2027; background: #0f2027;" /* fallback for old browsers */
+                + "background: -webkit-linear-gradient(to right, #0f2027, #203a43, #2c5364);" /* Chrome 10-25, Safari 5.1-6 */
+                + "background: linear-gradient(to right, #0f2027, #203a43, #2c5364);", /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ *///"background: #2E3436;",
+    FONT_COLOR : "color: #fff;",
+    NUMBER_BACKGROUND: "background: #2c5364;",
+    NUMBER_COLOR: "color: #c0b9b7;",
+    COMMENTS : "color: #33ff46;",
+    TYPES : "color: #4198ef;",
+    KEYWORDS : "color: #f99df2;",
+    DIRECTIVES : "color: #fcb246;",
+    FUNCTIONS : "color: #fcfc81;"
+};
+COBE.themes.PURPLE_RETRO = {
+    BACKGROUND : "background: #41295a;" /* fallback for old browsers */
+                + "background: -webkit-linear-gradient(to right, #2F0743, #41295a);" /* Chrome 10-25, Safari 5.1-6 */
+                + "background: linear-gradient(to right, #2F0743, #41295a);", /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+    FONT_COLOR : "color: #fff;",
+    NUMBER_BACKGROUND: "background: #67468a;",
+    NUMBER_COLOR: "color: #c0b9b7;",
+    COMMENTS : "color: #33ff46;",
+    TYPES : "color: #4198ef;",
+    KEYWORDS : "color: #fbff00;",
+    DIRECTIVES : "color: #fcb246;",
+    FUNCTIONS : "color: #fcfc81;"
+};
+//
+// Set COBE active theme
+//
+COBE.set_theme("DARK_RETRO");

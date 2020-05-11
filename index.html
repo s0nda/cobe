@@ -13,18 +13,56 @@
   <h1>CobeJS (COde BEautifier in Javascript)</h1>
   <h2>Syntax highlighting</h2>
   <br />
+  <button onclick="COBE.switch_theme('DARK');">DARK</button>
+  <button onclick="COBE.switch_theme('DARK_RETRO');">DARK_RETRO</button>
+  <button onclick="COBE.switch_theme('PURPLE_RETRO');">PURPLE_RETRO</button>
+  <br />
+  <br />
+  <div class="cobe">
+    char * func (int * x, char * y) { /* comment */
+    }
+    #
+    int write (int x , int y) { // int
+    int write (int x , /* int */ int y) { // int
+    char func (arg) {}
+    char func (int x, char y) {
+        // bla
+    }
+    char * func (int * x, char * y) {
+        // bla
+    }
+    char func ((void) func, int x) {}
+    char *  func (arg) {}
+    // char func (x) { xx }
+    char func (x) { xx } /* int func (ab) */
+    char func (x) { xx } // int func (ab)
+    char func (x) { xx } # comment
+    char func (x) { xx } // break;
+    int write (int x, int y) { }
+  </div>
+  <br />
+  <div class="cobe">
+    /*
+     * Standard example in C
+     */
+    #include <stdio.h>
+        
+    int main (int argc, char * argv[]) {
+        printf("Hello World!\n"); // The function printf() displays a string in console
+        return 0;
+    }
+  </div>
+  <br />
   <div class="cobe">
     #!/bin/bash
     #
-    # A bas script example
+    # A bash script example
     #
     while read line; do # while loop
         echo $line # display line in console
         read -p "User input: " user_input  # store user input in $user_input
         echo $user_input # display user input in console
     done &lt; "text.txt" # read input stream from "text.txt"
-    #
-    char func (arg) {}
   </div>
   <br />
   <div class="cobe">
