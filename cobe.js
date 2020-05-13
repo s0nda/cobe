@@ -299,7 +299,7 @@ var COBE = (function (_this) {
                     //
                     // Detect and format type-keywords
                     //
-                    let regex = new RegExp(DEFAULT_REGEX_TYPES, "gi"); // RegExp object (for types-keyword) => slower than RegExp Literal Notation "/../i" where flag "i" is for ignoring case-sensitive
+                    let regex = new RegExp(DEFAULT_REGEX_TYPES, "g"); // RegExp object (for types-keyword) => slower than RegExp Literal Notation "/../i" where flag "i" is for ignoring case-sensitive
                     if ( !lines[i].match(/[ ]*#[a-zA-Z0-9_!/]/) ) { // lines[i] has no preprocessor directives starting with "#"
                         let _zeile = _line;
                         let _array = null;
@@ -310,9 +310,10 @@ var COBE = (function (_this) {
                                 _zeile = _zeile.replaceAt(_array[0], "<span style='" + this.active_theme.TYPES + "'>" + _array[0] + "</span>", _array.index + _offset);
                                 _offset += _newLength;
                             }
-                            else {
-                                if (_line.charAt(index_comment) === "*" && _line.charAt(index_comment-1) !== "/") {
-                                    let _tmp = /\/\*/.exec(_line); // search for match like "/* <comment>" (beginning of comment)
+                            else { // keyword (_array[0]) may be inside comment, e.g. "//<comment> keyword <comment>" or "/* <comment> keyword <comment> */"
+                                let _tmp  = null;
+                                if (_line.charAt(index_comment) === "*" && _line.charAt(index_comment-1) !== "/") { // <comment> is not of kind: "/* <comment>..."
+                                    _tmp = /\/\*/.exec(_line); // search for match like "/* <comment>" (beginning of comment)
                                     let _ics = -1; // index comment start with "/* <comment>"
                                     let _ice = -1; // index comment end with "<comment> */"
                                     if (_tmp) { // there is comment of form "/* <comment>" in current line
@@ -330,7 +331,7 @@ var COBE = (function (_this) {
                                             _offset += _newLength;
                                         }
                                     }
-                                    else { // there is NO comment of form "/* <comment>" in current line
+                                    else { // there is NO comment of form "/* <comment>" in current line, but only of the form "* <comment>"
                                         _tmp = /\/\//.exec(_line); // search for match like "// <comment>"
                                         if (_tmp) { // there is comment of form "// <comment>" in current line
                                             if ( _line.indexOf(_array[0]) < _tmp.index ) { // keyword _array[0] is NOT inside comment of the form: "// <comment>"
@@ -338,7 +339,17 @@ var COBE = (function (_this) {
                                                 _offset += _newLength;
                                             }
                                         }
-                                        else {
+                                        else { // there is NO comment of form "// <comment>" in current line, but only of the form "* <comment>"
+                                            if ( !_line.match(/^[ ]*\*/g) ) {
+                                                _zeile = _zeile.replaceAt(_array[0], "<span style='" + this.active_theme.TYPES + "'>" + _array[0] + "</span>", _array.index + _offset);
+                                                _offset += _newLength;
+                                            }
+                                        }
+                                    }
+                                }
+                                else { // comment is of kind "/* <comment>..."
+                                    if (_array) {
+                                        if (_line.substring(_array.index-6, _array.index + _array[0].length+1).search(new RegExp("\\*\\/[ ]*" + _array[0], "g")) != -1) {
                                             _zeile = _zeile.replaceAt(_array[0], "<span style='" + this.active_theme.TYPES + "'>" + _array[0] + "</span>", _array.index + _offset);
                                             _offset += _newLength;
                                         }
@@ -443,38 +454,17 @@ var COBE = (function (_this) {
                         //
                         // Detect and format function-keywords
                         //
+                        _array = /["']/g.exec(_line);
                         lines[i] = lines[i].replace(/\b\w+\b(?=[ ]*\()/gi, (match) => {
-                            /*
-                            if (lines[i].match(new RegExp("\\+[ ]*" + match))) {
-                                return "<span style='" + this.active_theme.FUNCTIONS + "'>" + match + "</span>";
-                            }
-                            */
-                            return "<span style='" + this.active_theme.FUNCTIONS + "'>" + match + "</span>";
-                        });
-                        //
-                        /*
-                        regex = /\b\w+\b(?=[ ]*\()/gi; // RegExp for function keywords like: "func(" or "func ("
-                        _zeile = lines[i];
-                        _array = null;
-                        _offset = 0;
-                        const _newLength_ = ("<span style='" + this.active_theme.FUNCTIONS + "'></span>").length;
-                        while ( (_array = regex.exec(lines[i])) ) {
-                            console.log(_array);
-                            let _string = _zeile.match(/["'].+["']/)[0]; // match() returns an array of matches; otherwise null. Search for patterns like "<string>" with quotes at beginning and end.
-                            if (_string.indexOf(_array[0]) != -1) { // keyword (_array[0]) is inside a string "<string>"
-                                if (_string.match(new RegExp("\\+[ ]*" + _array[0] + "\\([^(]*\\)[ ]*\\+"))) { // string concaternation: "<string>" + func_keyword(x,y) + "<string>"
-                                    _zeile = _zeile.replaceAt(_array[0], "<span style='" + this.active_theme.FUNCTIONS + "'>" + _array[0] + "</span>", _array.index + _offset);
-                                    _offset += _newLength_;
+                            if (_array) {
+                                if (_line.substring(_array.index+ 1, match).indexOf("\"") == -1) {
+                                    return "<span style='" + this.active_theme.FUNCTIONS + "'>" + match + "</span>";
                                 }
                             }
                             else {
-                                _zeile = _zeile.replaceAt(_array[0], "<span style='" + this.active_theme.FUNCTIONS + "'>" + _array[0] + "</span>", _array.index + _offset);
-                                _offset += _newLength_;
+                                return "<span style='" + this.active_theme.FUNCTIONS + "'>" + match + "</span>";
                             }
-                            break;
-                        }
-                        lines[i] = _zeile;
-                        */
+                        });
                     }
                     else {
                         //
