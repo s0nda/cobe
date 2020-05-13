@@ -19,9 +19,123 @@
   <br />
   <br />
   <div class="cobe">
-    char * func (int * x, char * y) { /* comment */
+    int write (int x , /* int */ int y) { // int
+    char * func (int * x, char * y) { /* type double here */
+    char * func (int * x, char * y) { /* comment double * type */
+    char * func (int * x, char * y) { // type double
+    char * func (int * x, char * y) { // type double here
+    echo -e "\n\e[36mThe new files will not be added (committed) at once.\e[0m"
+    echo "we use function " + add(x,y) + "asaas" # comment
+    echo "we use added (abx) command"# we can use keyword for in function (keyword)
+    int main (int argc, char * argv[]) {
+    if [ -z ]; then # if [ -z ]; then
+    for ff in "${ARR_IGNORED_FILES[@]}"; do # for ff in do; then the @-sign in 
+    #!/bin/bash
+    TMP_FILE="tmp.txt"
+    #
+    # Contains names of existing files that are modified and will be uploaded to repository
+    MOD_FILE="upload.txt"
+    #
+    # Contains names of new files that didn't exist in repository before
+    NEW_FILE="new.txt"
+    #
+    # Array of file names that should be ignored
+    ARR_IGNORED_FILES=("germany.json" "test.json" "test.php" "test.txt" "test2.php" "test3.php" "testa.php" "testjson.php")
+    #
+    # Show the working tree status, in short (-s) form. Redirect (Overwrite) information to external file.
+    git status -s > $TMP_FILE
+    #
+    # Read line by line from external file. Split every $line in array of tokens separated by IFS (delimiter).
+    while read line; do
+        if [ -z "$line" ]; then
+            continue;
+        fi
+        accepted=true # <true> if a file should be accepted / added in git, <false> otherwise.
+        IFS=' ' # set space as delimiter.
+        read -ra arr <<< "$line" # string in $line is read into an array of tokens separated by IFS.
+        #
+        # Every $line has the form: "?? fileA.extension" or " M fileA.extension", where " M " is for an added file
+        # that is just modified, and "??" is for a new file to be added. The first token "${arr[0]}" (e.g. "??" or " M ")
+        # has index 0, the second token "${arr[1]}" (e.g. "fileA.extension") has index 1 and so on.
+        status="${arr[0]}"; # "${arr[0]}" indicates the first token, either "??" or " M ".
+        file_path="${arr[1]}"; # ${arr[0]}" indicates the second token, is name (path) of the file to be added or ignored.
+        # new file ("??"), should be added.
+        if [ "$status" = "??" ]; then
+            for ff in "${ARR_IGNORED_FILES[@]}"; do # the @-sign in "${array[@]}" indicates the whole array values.
+                if [ "$file_path" = "$ff" ]; then # if $file_path is in the ARR_IGNORED_FILES list, then skip / ignore it.
+                    accepted=false
+                    break;
+                fi
+            done
+            if [ "$file_path" = "$TMP_FILE" ]; then # prevent that $TMP_FILE file name is written to $NEW_FILE
+                accepted=false
+            fi
+            if [ "$accepted" = true ]; then # new file ("??"") is accepted and going to be written to $NEW_FILE
+                echo $file_path >> $NEW_FILE
+            fi
+        # modified file (" M ") is going to be written to $MOD_FILE
+        elif [ "$status" = "M" ]; then
+            echo $file_path >> $MOD_FILE # write file name to $MOD_FILE
+        fi
+    done < $TMP_FILE
+    #
+    # Delete created external file
+    rm -f $TMP_FILE
+    #
+    # Display and color content $MOD_FILE
+    # URL: https://misc.flogisoft.com/bash/tip_colors_and_formatting
+    echo -e "\n\e[36m================================\e[0m" # "..\e[0m" : End coloring
+    echo -e "\e[36mModified files:\e[0m" # "\e[36m.." : Cyan
+    while read line; do
+        echo -e "\e[92m$line" # "\e[92m.." : Light Green
+    done < $MOD_FILE
+    #
+    # Display and color content $NEW_FILE
+    # URL: https://misc.flogisoft.com/bash/tip_colors_and_formatting
+    echo -e "\n\e[36m================================\e[0m" # "..\e[0m" : End coloring
+    echo -e "\e[36mNew files:\e[0m" # "\e[36m.." : Cyan
+    while read line; do
+        echo -e "\e[91m$line\e[0m" # "\e[91m.." : Light Red
+    done < $NEW_FILE
+    #
+    # Read user input (prompt, -p)
+    echo -e "\n\e[36mAdd / Commit all new files at once? (Y/N):\e[0m"
+    read -p "User chooses: " user_input
+    #
+    # Proceeds according to user input (choose).
+    # If user does not want to add (commit) all new files to repository at once.
+    if [ "$user_input" = 'N' ] || [ "$user_input" = 'n' ]; then
+        echo -e "\n\e[36mThe new files will not be added (committed) at once.\e[0m"
+        echo -e "\n\e[36mUser should decide which file should be added / ignored now.\e[0m"
+        #
+        # Read from $NEW_FILE. Decide if a file should be added to repository or ignored.
+        # Then write it to $TMP_FILE
+        while read line; do
+            read -p "Should add file \"$line\"? (Y/N): " -u 1 user_var # "-u 1" : read from stdin
+            if [ "$user_var" = 'Y' ] || [ "$user_var" = 'y' ]; then
+                echo $line >> $TMP_FILE # Write (Overwrite) $line to $TMP_FILE
+            fi
+        done < $NEW_FILE
+    fi
+    #
+    # Delete external file
+    rm -f $MOD_FILE $NEW_FILE
+  </div>
+  <br />
+  <div class="cobe">
+    char * func (int * x, char * y) { /* double */
+    char * func (int * x, char * y) { /* comment double */
     }
     #
+    if (x == 1) { // if then else
+        dddd;
+        /*
+        * if then else
+        * return 0;
+        */
+        func();
+        printf();
+    }
     int write (int x , int y) { // int
     int write (int x , /* int */ int y) { // int
     char func (arg) {}
@@ -39,6 +153,16 @@
     char func (x) { xx } # comment
     char func (x) { xx } // break;
     int write (int x, int y) { }
+  </div>
+  <div class="cobe">
+    /*
+     * Standard example in Java.
+     */
+    class HelloWorld {
+        public static void main (String[] args) {
+            System.out.println("Hello World!" + exit()); // Use the system function println()
+        }
+    }
   </div>
   <br />
   <div class="cobe">
