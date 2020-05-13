@@ -20,9 +20,23 @@ var COBE = (function (_this) {
     //
     // Define new String function(s)
     //
-    String.prototype.replaceAt = function (substr, newsubstr, index) {
-        return this.substring(0, index) + newsubstr + this.substring(index + substr.length);
-    };
+    if ( typeof String.prototype.replaceAt === 'undefined' ) {
+        String.prototype.replaceAt = function (substr, newsubstr, index) {
+            return this.substring(0, index) + newsubstr + this.substring(index + substr.length);
+        };
+    }
+    if ( typeof String.prototype.escapeHTML == 'undefined' ) { // escape special signs
+        String.prototype.escapeHTML = function () {
+            return (
+                this.replace(/<\/.*>(?![^ ])/g, "") // Negated Lookahead x(?:y): 
+                                                    //    Match any pattern </.*> (e.g. </stdio.h>, </string>) only if it is NOT followed 
+                                                    //    by [^ ] (i.e. any special character like \r,\n,\t etc. that is NOT empty).
+                                                    //    In anderen Worten, match jedes Muster, das vor \r,\n,\t etc. steht.
+                    .replace(/>/g, "&gt;")  // '>' is replaced by &gt;
+                    .replace(/</g, "&lt;")  // '<' is replaced by &lt;
+            );
+        };
+    }
     //
     // Collections of keywords in code
     //
@@ -102,21 +116,6 @@ var COBE = (function (_this) {
             //
             if ( !this.active_theme ) {
                 this.active_theme = this.themes["DARK"]; // "this" refers to "_" == "_this.COBE" == "window.COBE"
-            }
-            //
-            // Add new function to String prototype to escape special signs
-            //
-            if ( typeof String.prototype.escapeHTML == 'undefined' ) {
-                String.prototype.escapeHTML = function () {
-                    return (
-                        this.replace(/<\/.*>(?![^ ])/g, "") // Negated Lookahead x(?:y): 
-                                                            //    Match any pattern </.*> (e.g. </stdio.h>, </string>) only if it is NOT followed 
-                                                            //    by [^ ] (i.e. any special character like \r,\n,\t etc. that is NOT empty).
-                                                            //    In anderen Worten, match jedes Muster, das vor \r,\n,\t etc. steht.
-                            .replace(/>/g, "&gt;")  // '>' is replaced by &gt;
-                            .replace(/</g, "&lt;")  // '<' is replaced by &lt;
-                    );
-                };
             }
             //
             // Start making code pretty
